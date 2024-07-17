@@ -118,17 +118,32 @@ def networkConnect():
     else:
         return '192.168.1.1'
 
+loop = 0
+accumulator = 0
 def processSensorInput():
+    global loop
+    global accumulator
+
     value = 1023.0
     if(not minimal):
         if button.value():
+            mq.publish("DRY", "true")
             led.low()
         else:
             led.high()
+            mq.publish("DRY", "false")
 
         raw = adc.read_u16() & 0xFFF
         value = (raw/4095)*1023
-    mq.publish("MOIST", str(value))
+
+    loop+=1
+    if(loop == 60):
+        loop = 1
+        accumulator = value
+    else:
+        accumulator += value
+        value = accumulator/loop
+    mq.publish("MOISTURE", str(value))
 
 ip = networkConnect()
 mq = mqtt(address=ip,username=mqtt_username,password=mqtt_password)
