@@ -1,17 +1,4 @@
-ssid = ''
-network_password = ''
-
-mqtt_username = ''
-mqtt_password = ''
-
-from sys import platform
-import time
-
-minimal = platform == 'linux'
-if(not minimal):
-    from machine import ADC,Pin,UART
-    import network
-    import socket
+import socket
 
 mqtt_port = 1883
 
@@ -51,11 +38,12 @@ class connect_header:
     client_id_length = len(client_id)
 
 class mqtt:
-    def __init__(self, address, username, password):
+    def __init__(self, address, username, password, simulated):
         self.address = address
         self.username = username
         self.password = password
-        if(not minimal):
+        self.simulated = simulated
+        if(not simulated):
             self.socket = socket.socket()
             self.socket.connect(socket.getaddrinfo('homeassistant.lan', mqtt_port)[0][-1])
 
@@ -78,7 +66,7 @@ class mqtt:
         b.extend(self.password)
 
         packet = bytes(b)
-        if(minimal):
+        if(self.simulated):
             print(packet)
         else:
             self.socket.write(packet)
@@ -96,64 +84,12 @@ class mqtt:
         b.extend(topic)
         b.extend(message)
         packet = bytes(b)
-        if(minimal):
+        if(self.simulated):
             print(packet)
         else:
             self.socket.write(packet)
         return
     def disconnect(self):
-        if(not minimal):
+        if(not self.simulated):
             self.socket.close()
         return
-
-def networkConnect():
-    if(not minimal):
-        wlan = network.WLAN(network.STA_IF)
-        wlan.active(True)
-        wlan.connect(ssid, network_password)
-        while wlan.isconnected() == False:
-            time.sleep(1)
-
-        return wlan.ifconfig()[0]
-    else:
-        return '192.168.1.1'
-
-loop = 0
-accumulator = 0
-def processSensorInput():
-    global loop
-    global accumulator
-
-    value = 1023.0
-    if(not minimal):
-        if button.value():
-            mq.publish("DRY", "true")
-            led.low()
-        else:
-            led.high()
-            mq.publish("DRY", "false")
-
-        raw = adc.read_u16() & 0xFFF
-        value = (raw/4095)*1023
-
-    loop+=1
-    if(loop == 60):
-        loop = 1
-        accumulator = value
-    else:
-        accumulator += value
-        value = accumulator/loop
-    mq.publish("MOISTURE", str(value))
-
-ip = networkConnect()
-mq = mqtt(address=ip,username=mqtt_username,password=mqtt_password)
-mq.connect()
-
-if(not minimal):
-    button = machine.Pin(26, machine.Pin.IN)
-    adc = ADC(Pin(27))
-    led = Pin("LED", Pin.OUT)
-
-while True:
-    processSensorInput()
-    time.sleep(1)
