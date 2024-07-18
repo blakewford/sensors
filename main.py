@@ -3,6 +3,7 @@ from sys import platform
 
 from moisture import moisture
 from mqtt import mqtt
+from temperature import temperature
 
 ssid = ''
 network_password = ''
@@ -29,6 +30,7 @@ def networkConnect():
 ip = networkConnect()
 mq = mqtt(address=ip,username=mqtt_username,password=mqtt_password, simulated=simulated)
 moist = moisture(simulated)
+temp = temperature(-2, simulated)
 
 mq.connect()
 while True:
@@ -36,4 +38,5 @@ while True:
     dry = moist.processBinaryInput()
     mq.publish("MOISTURE", str(value))
     mq.publish("DRY", str(dry))
+    mq.publish("TEMPERATURE", str(temp.readTemperatureF()))
     time.sleep(1)
